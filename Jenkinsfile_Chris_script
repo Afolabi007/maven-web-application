@@ -1,0 +1,43 @@
+node {
+    def mavenHome = tool name: "maven3.8.6"
+    stage('1clonecode'){
+   git "https://github.com/Afolabi007/maven-web-application"
+
+  }
+  
+stage('2testandBuild'){
+    sh "${mavenHome}/bin/mvn clean package"
+    
+}
+ 
+stage('3codeQuality'){
+    sh "${mavenHome}/bin/mvn sonar:sonar"
+  
+}
+stage('4uploadArtifacts'){
+    sh "${mavenHome}/bin/mvn deploy"
+  
+}
+
+stage('5deployToUAT'){
+    sh "echo 'deploying to UAT' " 
+    deploy adapters: [tomcat9(credentialsId: 'TomcatID', path: '', url: 'http://15.222.248.221:8080/')], contextPath: null, war: 'target/*war'
+}
+
+stage('6ApprovalGate'){
+    sh "echo 'waiting for approval'"
+    timeout(time:5, unit:'DAYS'){
+        input message: 'Application ready for deployment  please review'
+    }
+}
+stage('7deployToProduction'){
+    sh "echo 'deploying to production' " 
+    deploy adapters: [tomcat9(credentialsId: 'TomcatID', path: '', url: 'http://15.222.248.221:8080/')], contextPath: null, war: 'target/*war'
+}
+stage('8emailNotification'){
+    emailext body: '''Hi all,
+Check build status.
+
+Samuels Tech''', recipientProviders: [buildUser(), developers(), contributor(), upstreamDevelopers()], subject: 'Build status', to: 'AfolabiEwuola@gmail.com'
+}
+}
